@@ -26,11 +26,15 @@ FEATURE_STATIC = ' {static}'
 FEATURE_INSTANCE = ''
 
 
-def to_puml_content(diagram_name: str, uml_items: List[UmlItem], uml_relations: List[UmlRelation]) -> Iterable[str]:
+def to_puml_content(
+    diagram_name: str, uml_items: List[UmlItem], uml_relations: List[UmlRelation], **kwargs
+) -> Iterable[str]:
     yield PUML_FILE_START.format(diagram_name=diagram_name)
 
     # exports the domain classes and enums
     for uml_item in uml_items:
+        if 'is_block_valid' in kwargs and callable(kwargs['is_block_valid']) and not kwargs['is_block_valid'](uml_item):
+            continue
         if isinstance(uml_item, UmlEnum):
             uml_enum: UmlEnum = uml_item
             yield PUML_ITEM_START_TPL.format(item_type='enum', item_fqn=uml_enum.fqn)
@@ -48,12 +52,27 @@ def to_puml_content(diagram_name: str, uml_items: List[UmlItem], uml_relations: 
                     attr_type=uml_attr.type,
                     staticity=FEATURE_STATIC if uml_attr.static else FEATURE_INSTANCE,
                 )
+            for uml_method in uml_class.methods:
+                if (
+                    'is_method_valid' in kwargs
+                    and callable(kwargs['is_method_valid'])
+                    and not kwargs['is_method_valid'](uml_method)
+                ):
+                    continue
+
+                yield f'  {uml_method.represent_as_puml()}\n'
             yield PUML_ITEM_END
         else:
             raise TypeError(f'cannot process uml_item of type {uml_item.__class__}')
 
     # exports the domain relationships between classes and enums
     for uml_relation in uml_relations:
+        if (
+            'is_relation_valid' in kwargs
+            and callable(kwargs['is_relation_valid'])
+            and not kwargs['is_relation_valid'](uml_relation)
+        ):
+            continue
         yield PUML_RELATION_TPL.format(
             source_fqn=uml_relation.source_fqn, rel_type=uml_relation.type.value, target_fqn=uml_relation.target_fqn
         )
