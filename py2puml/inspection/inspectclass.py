@@ -3,6 +3,7 @@ from importlib import import_module
 from inspect import isabstract
 from re import compile as re_compile
 from typing import Dict, List, Type
+from warnings import warn
 
 from py2puml.domain.umlclass import UmlAttribute, UmlClass
 from py2puml.domain.umlitem import UmlItem
@@ -68,9 +69,13 @@ def inspect_static_attributes(
                     attr_type = concrete_type
             # compound type (tuples, lists, dictionaries, etc.)
             else:
-                attr_type, full_namespaced_definitions = shorten_compound_type_annotation(
-                    attr_raw_type, module_resolver
-                )
+                try:
+                    attr_type, full_namespaced_definitions = shorten_compound_type_annotation(
+                        attr_raw_type, module_resolver
+                    )
+                except ValueError:
+                    warn(f'Failed to shorten compound type annotation "{attr_raw_type}" for attribute "{attr_name}". Skipping.')
+                    continue
                 relations_by_target_fqdn.update(
                     {
                         attr_fqn: UmlRelation(uml_class.fqn, attr_fqn, RelType.COMPOSITION)
